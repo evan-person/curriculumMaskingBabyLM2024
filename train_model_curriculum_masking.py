@@ -36,7 +36,7 @@ from transformers import LineByLineTextDataset
 
 dataset = LineByLineTextDataset(
     tokenizer=tokenizer,
-    file_path="../data/eli5data/10m_train.txt",
+    file_path="../eli5data/10m_train.txt",
     block_size=128,
 )
 
@@ -102,6 +102,7 @@ class CustomMaskCollator(DataCollatorForLanguageModeling):
 # include the following: UH, NN, PRP, NNS, NNP, VB, VBZ, VBP, IN, JJ, PRP$, NNPS,WDT,WP, DT,  VBP, VBG, VBN, VBZ, POS, RB, RBR, RBS, RP, JJR, JJS, MD
 pos_tags = ['UH','NN','PRP','CC','NNS', 'NNP', 'VB', 'VBZ', 'VBP', 'IN', 'JJ', 'PRP$', 'NNPS','WDT','WP', 'DT',  'VBP', 'VBG', 'VBN', 'VBZ', 'POS', 'RB', 'RBR', 'RBS', 'RP', 'JJR', 'JJS', 'MD']
 pos_schedule = [2,3,8,14,19,27,31]
+epoch_schedule = [1,2,3,5,5,5,5]
 
 from transformers import Trainer, TrainingArguments
 
@@ -122,12 +123,12 @@ wandb.init(
     },
 )
 
-for step in pos_schedule:
+for i,step in enumerate(pos_schedule):
         
     training_args = TrainingArguments(
         output_dir="./roberta_10m_eli5_curriculum_masking",
         overwrite_output_dir=True,
-        num_train_epochs=5,
+        num_train_epochs=epoch_schedule[i],
         per_device_train_batch_size=128,
         report_to="wandb",
         logging_steps=500,
@@ -140,7 +141,7 @@ for step in pos_schedule:
         model=model,
         args=training_args,
         data_collator=CustomMaskCollator(
-            pos_tags=pos_tags,
+            pos_tags=pos_tags[:step],
             tokenizer=tokenizer,
             mlm=True,
             mlm_probability=0.15,
