@@ -82,9 +82,9 @@ class CustomMaskCollator(DataCollatorForLanguageModeling):
             for j, word in enumerate(words_to_mask):
                 # word_mask[word_id_list[word]] = 1
                 if word < len(word_id_list):
-                    sentence[word_id_list[word]] = self.tokenizer.mask_token_id
+                    
                     labels[word_id_list[word]] = sentence[word_id_list[word]]
-
+                    sentence[word_id_list[word]] = self.tokenizer.mask_token_id
             
             batch["labels"][i] = labels
             batch["input_ids"][i] = torch.tensor(sentence)
@@ -102,7 +102,7 @@ class CustomMaskCollator(DataCollatorForLanguageModeling):
 # include the following: UH, NN, PRP, NNS, NNP, VB, VBZ, VBP, IN, JJ, PRP$, NNPS,WDT,WP, DT,  VBP, VBG, VBN, VBZ, POS, RB, RBR, RBS, RP, JJR, JJS, MD
 pos_tags = ['UH','NN','PRP','CC','NNS', 'NNP', 'VB', 'VBZ', 'VBP', 'IN', 'JJ', 'PRP$', 'NNPS','WDT','WP', 'DT',  'VBP', 'VBG', 'VBN', 'VBZ', 'POS', 'RB', 'RBR', 'RBS', 'RP', 'JJR', 'JJS', 'MD']
 pos_schedule = [2,3,8,14,19,27,31]
-epoch_schedule = [1,2,3,5,5,5,5]
+epoch_schedule = [1,2,3,3,3,5,10]
 
 from transformers import Trainer, TrainingArguments
 
@@ -114,7 +114,7 @@ wandb.init(
     name="roberta_10m_eli5_curriculum_masking",
     entity="prime-lab-mtu",
     config={
-        "batch_size": 128,
+        "batch_size": 512,
         "epochs":30,
         "mlm_probability": 0.15,
         "model": "roberta",
@@ -129,11 +129,16 @@ for i,step in enumerate(pos_schedule):
         output_dir="./roberta_10m_eli5_curriculum_masking",
         overwrite_output_dir=True,
         num_train_epochs=epoch_schedule[i],
-        per_device_train_batch_size=128,
+        per_device_train_batch_size=256,
         report_to="wandb",
-        logging_steps=500,
-        save_steps=10_000,
+        logging_steps=100,
+        save_steps=1_000,
         save_total_limit=2,
+        lr_scheduler_type="cosine",
+        warmup_steps=200,
+        learning_rate=1e-4,
+        # warmup_ratio=0.1,
+        prediction_loss_only=True,
     )
 
 
@@ -144,10 +149,16 @@ for i,step in enumerate(pos_schedule):
             pos_tags=pos_tags[:step],
             tokenizer=tokenizer,
             mlm=True,
-            mlm_probability=0.15,
+            mlm_probability=0.2,
         ),
         train_dataset=dataset,
+        
     )
+
+
+
+
+
 
 
     trainer.train()
